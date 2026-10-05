@@ -24,11 +24,17 @@ def consume_fefo(lots: list[dict], qty: float) -> dict:
         return {"ok": False, "reason": "short", "deductions": deductions, "short": round(need, 3)}
     return {"ok": True, "reason": "", "deductions": deductions, "short": 0.0}
 
+def is_expired(expiry: str | None, today: str) -> bool:
+    """Canonical expired predicate. One definition shared by the expire sweep
+    (delist list), the alerts bar (level='expired') and transfer eligibility, so
+    a lot cannot be 'expired' in one place and transferable/listed in another.
+    Expired means the expiry date has passed (expiry < today)."""
+    return bool(expiry) and expiry < today
+
 def expire_lots(lots: list[dict], today: str) -> list[int]:
-    """Ids that should leave shelf: remaining>0 and expiry < today."""
+    """Ids that should leave shelf: remaining>0 and expired by is_expired."""
     out = []
     for l in lots:
-        exp = l.get("expiry")
-        if exp and exp < today and float(l.get("qty_remain", 0)) > 0:
+        if is_expired(l.get("expiry"), today) and float(l.get("qty_remain", 0)) > 0:
             out.append(l["id"])
     return out

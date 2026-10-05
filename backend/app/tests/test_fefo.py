@@ -1,4 +1,4 @@
-from app.engines.fefo import consume_fefo, expire_lots, sort_lots_fefo
+from app.engines.fefo import consume_fefo, expire_lots, is_expired, sort_lots_fefo
 
 def test_fefo_order():
     lots = [
@@ -20,3 +20,9 @@ def test_expire():
         {"id": 2, "qty_remain": 1, "expiry": "2027-01-01"},
     ], "2026-01-01")
     assert ids == [1]
+
+def test_is_expired_boundary():
+    # 到期日当天不算过期（仍可消费/属临期），过了到期日才算；顶条、下架、转层共用此边界
+    assert is_expired("2026-10-04", "2026-10-05") is True
+    assert is_expired("2026-10-05", "2026-10-05") is False
+    assert is_expired(None, "2026-10-05") is False
