@@ -1,5 +1,13 @@
 """FEFO consume: earliest expiry first among positive remaining lots."""
 
+def is_expired(expiry: str | None, today: str) -> bool:
+    """全系统唯一的"已过期"判定：下架名单、顶条 expired、转层资格共用。
+
+    到期日当天即算过期（expiry <= today）。任何一处改口径都会让
+    "顶条已当过期、层页还挂在架上"这类撕裂复现，所以只准改这里。
+    """
+    return bool(expiry) and expiry <= today
+
 def sort_lots_fefo(lots: list[dict]) -> list[dict]:
     return sorted(
         [l for l in lots if float(l.get("qty_remain", 0)) > 0],
@@ -25,10 +33,6 @@ def consume_fefo(lots: list[dict], qty: float) -> dict:
     return {"ok": True, "reason": "", "deductions": deductions, "short": 0.0}
 
 def expire_lots(lots: list[dict], today: str) -> list[int]:
-    """Ids that should leave shelf: remaining>0 and expiry < today."""
-    out = []
-    for l in lots:
-        exp = l.get("expiry")
-        if exp and exp < today and float(l.get("qty_remain", 0)) > 0:
-            out.append(l["id"])
-    return out
+    """Ids that should leave shelf: remaining>0 and expired per is_expired."""
+    return [l["id"] for l in lots
+            if is_expired(l.get("expiry"), today) and float(l.get("qty_remain", 0)) > 0]

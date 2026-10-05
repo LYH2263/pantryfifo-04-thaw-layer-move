@@ -2,15 +2,23 @@ from app.db import connect
 
 def init_db():
     c = connect()
+    c.execute("PRAGMA journal_mode=WAL")  # 读写不互斥，设置一次即持久
     c.executescript("""
     CREATE TABLE IF NOT EXISTS items(id INTEGER PRIMARY KEY, name TEXT, layer TEXT, unit TEXT);
     CREATE TABLE IF NOT EXISTS lots(
       id INTEGER PRIMARY KEY AUTOINCREMENT, item_id INT, qty_in REAL, qty_remain REAL,
-      expiry TEXT, status TEXT, data_quality TEXT
+      expiry TEXT, status TEXT, data_quality TEXT, layer_override TEXT
     );
     CREATE TABLE IF NOT EXISTS consumptions(id INTEGER PRIMARY KEY AUTOINCREMENT, note TEXT, result_json TEXT, created_at TEXT);
+    CREATE TABLE IF NOT EXISTS transfers(
+      id INTEGER PRIMARY KEY AUTOINCREMENT, lot_id INT, from_layer TEXT, to_layer TEXT, created_at TEXT
+    );
     CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY, value TEXT);
     """)
+    # 旧库轻量迁移：补 layer_override 列（NULL = 跟随品项默认层）
+    cols = {r["name"] for r in c.execute("PRAGMA table_info(lots)")}
+    if "layer_override" not in cols:
+        c.execute("ALTER TABLE lots ADD COLUMN layer_override TEXT")
     if c.execute("SELECT COUNT(*) c FROM items").fetchone()["c"] == 0:
         c.executemany("INSERT INTO items(name,layer,unit) VALUES (?,?,?)", [
             ("牛奶", "upper", "盒"), ("鸡蛋", "mid", "个"), ("冻饺", "lower", "袋"),
@@ -26,5 +34,5 @@ def init_db():
             ],
         )
         c.execute("INSERT INTO settings(key,value) VALUES ('warn_days','3')")
-        c.commit()
+    c.commit()
     c.close()

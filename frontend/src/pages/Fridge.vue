@@ -5,7 +5,9 @@
     <div class="fridge">
       <section v-for="L in layers" :key="L" class="shelf">
         <h3>{{ label[L] }}</h3>
-        <span v-for="x in by(L)" :key="x.id" class="lot">{{ x.name }} ×{{ x.qty_remain }} · {{ x.expiry }}</span>
+        <span v-for="x in by(L)" :key="x.id" class="lot" :class="{ dead: x.expired }">
+          {{ x.name }} ×{{ x.qty_remain }} · {{ x.expiry }}<em v-if="x.expired">已过期</em>
+        </span>
       </section>
     </div>
     <button style="margin-top:12px" @click="sweep">过期下架</button>
